@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+._*
+
+# Node
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Runs produced by the idea_review tool (idea, PDFs, notes, reports)
+idea-review-runs/
+
+# Local scratch
+*.log
+tmp/

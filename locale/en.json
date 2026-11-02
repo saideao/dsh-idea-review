@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Idea Review",
+    "description": "Reviews a research idea against the literature: searches, reads full texts, finds gaps, writes proposals, and gets peer review from other models. Adds an idea_review tool, an idea-review skill, and a report panel."
+  }
+}
