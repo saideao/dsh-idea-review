@@ -2,7 +2,8 @@
 
 ![ci](https://github.com/saideao/dsh-idea-review/actions/workflows/ci.yml/badge.svg)
 
-基于[research-idea-review](https://github.com/saideao/research-idea-review)使用DeepSeek Harness Creator Mode开发的DSH 插件，把 idea-review 移植成 DSH 插件：给一个还很粗糙的研究 idea 做一次文献调研和多模型评审，
+基于 [research-idea-review](https://github.com/saideao/research-idea-review)（即 idea-review）用 DeepSeek Harness 的
+Creator Mode 开发：把这个项目移植成 DSH 插件，给一个还很粗糙的研究 idea 做一次文献调研和多模型评审，
 最后出一份可以自己看的 HTML 报告。
 
 装上以后，在 DSH 里跟 agent 说一句话就行：
@@ -246,6 +247,6 @@ python3 test/smoke.py      # 脚本/参考资料与原项目逐字节一致，zh
 ## 许可
 
 MIT，见 [LICENSE](LICENSE)。`skill/scripts`、`skill/references`、`skill/assets` 来自上游
-idea-review 项目，版权归原作者；本插件在这些文件上做了改动（新增最终评审这一步：
-`ir.py` 的 `chair`、`report.py` 的最终评审一节、`schemas` 里的 `FinalReview`、
-`assets/final_review.*.md`），其余文件保持原样。
+[research-idea-review](https://github.com/saideao/research-idea-review) 项目，版权归原作者；
+本插件在这些文件上做了改动（新增最终评审这一步：`ir.py` 的 `chair`、`report.py` 的最终评审一节、
+`schemas` 里的 `FinalReview`、`assets/final_review.*.md`），其余文件保持原样。
