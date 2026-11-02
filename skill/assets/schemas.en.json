@@ -958,5 +958,238 @@
   "title": "ChairSummary",
   "type": "object",
   "additionalProperties": false
+ },
+ "FinalReview": {
+  "title": "FinalReview",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "A cross-proposal final review that turns several independent meta reviews into one decision-ready document. No scores, no final verdict, no decision on the author's behalf.",
+  "properties": {
+   "verdict": {
+    "title": "Verdict",
+    "type": "string",
+    "description": "Three to five sentences: where each proposal stands, which to move on first, and why. No score and no worth-doing verdict"
+   },
+   "per_idea": {
+    "title": "Per Idea",
+    "type": "array",
+    "items": {
+     "$ref": "#/$defs/IdeaStanding"
+    },
+    "description": "One entry per proposal"
+   },
+   "consensus": {
+    "title": "Consensus",
+    "type": "array",
+    "items": {
+     "$ref": "#/$defs/FinalConsensusIssue"
+    },
+    "description": "Problems raised by two or more reviewers, naming who raised them"
+   },
+   "disagreements": {
+    "title": "Disagreements",
+    "type": "array",
+    "items": {
+     "$ref": "#/$defs/FinalDisagreement"
+    },
+    "description": "Where reviewers actually contradict each other; do not smooth it over"
+   },
+   "top_risks": {
+    "title": "Top Risks",
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "description": "The 3 most fatal problems, most serious first, each with its basis"
+   },
+   "cheapest_experiments": {
+    "title": "Cheapest Experiments",
+    "type": "array",
+    "items": {
+     "$ref": "#/$defs/FinalExperiment"
+    },
+    "description": "The cheapest falsification experiments to run first, 2 to 4, ordered by cost"
+   },
+   "must_verify": {
+    "title": "Must Verify",
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "description": "Claims the author must verify by opening the papers, with paper IDs"
+   },
+   "next_steps": {
+    "title": "Next Steps",
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "description": "Recommended next steps, 2 to 4, in order"
+   },
+   "uncertainties": {
+    "title": "Uncertainties",
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "description": "Where you are unsure or the material is not enough to judge"
+   }
+  },
+  "required": [
+   "verdict",
+   "per_idea",
+   "consensus",
+   "disagreements",
+   "top_risks",
+   "cheapest_experiments",
+   "must_verify",
+   "next_steps",
+   "uncertainties"
+  ],
+  "$defs": {
+   "IdeaStanding": {
+    "title": "IdeaStanding",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "proposal_id": {
+      "title": "Proposal Id",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string",
+      "enum": [
+       "clear",
+       "contested",
+       "needs_evidence",
+       "blocked"
+      ],
+      "description": "Where this direction stands: clear = no hard objection yet / contested = reviewers disagree / needs_evidence = a key claim lacks evidence / blocked = a reviewer raised a fatal problem"
+     },
+     "summary": {
+      "title": "Summary",
+      "type": "string",
+      "description": "One or two sentences on where this direction stands after weighing the reviewers"
+     },
+     "main_risks": {
+      "title": "Main Risks",
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "At most 3, most fatal first"
+     },
+     "supporting_papers": {
+      "title": "Supporting Papers",
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "IDs of the papers that support this, e.g. P03, P07"
+     }
+    },
+    "required": [
+     "proposal_id",
+     "status",
+     "summary",
+     "main_risks",
+     "supporting_papers"
+    ]
+   },
+   "FinalConsensusIssue": {
+    "title": "FinalConsensusIssue",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "issue": {
+      "title": "Issue",
+      "type": "string"
+     },
+     "raised_by": {
+      "title": "Raised By",
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Names of the reviewers who raised it"
+     },
+     "severity": {
+      "title": "Severity",
+      "type": "string",
+      "enum": [
+       "fatal",
+       "serious",
+       "minor"
+      ]
+     }
+    },
+    "required": [
+     "issue",
+     "raised_by",
+     "severity"
+    ]
+   },
+   "FinalDisagreement": {
+    "title": "FinalDisagreement",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "topic": {
+      "title": "Topic",
+      "type": "string"
+     },
+     "positions": {
+      "title": "Positions",
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "For each, name the reviewer and their view"
+     },
+     "how_to_settle": {
+      "title": "How To Settle",
+      "type": "string",
+      "description": "Which experiment or which paper would settle it"
+     }
+    },
+    "required": [
+     "topic",
+     "positions",
+     "how_to_settle"
+    ]
+   },
+   "FinalExperiment": {
+    "title": "FinalExperiment",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "experiment": {
+      "title": "Experiment",
+      "type": "string"
+     },
+     "for_idea": {
+      "title": "For Idea",
+      "type": "string",
+      "description": "Which proposal it tests: I1 / I2"
+     },
+     "kill_if": {
+      "title": "Kill If",
+      "type": "string",
+      "description": "Result that means give up"
+     },
+     "est_days": {
+      "title": "Est Days",
+      "type": "string"
+     }
+    },
+    "required": [
+     "experiment",
+     "for_idea",
+     "kill_if",
+     "est_days"
+    ]
+   }
+  }
  }
 }

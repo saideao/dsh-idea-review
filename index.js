@@ -26,7 +26,7 @@ const SKILL_FILE = path.join(SKILL_DIR, 'SKILL.md')
 const IR_SCRIPT = path.join(SKILL_DIR, 'scripts', 'ir.py')
 const REPORT_SCRIPT = path.join(SKILL_DIR, 'scripts', 'report.py')
 
-const ACTIONS = ['init', 'next', 'search', 'fetch', 'review', 'reviewers', 'report']
+const ACTIONS = ['init', 'next', 'search', 'fetch', 'review', 'reviewers', 'chair', 'report']
 const WRITERS = ['anthropic', 'openai', 'google', 'tencent', 'other']
 
 const DEFAULT_CONFIG = {
@@ -34,8 +34,15 @@ const DEFAULT_CONFIG = {
   python: 'python3',
   /** Where the run index lives; empty means $DSH_HOME/idea-review. */
   stateDir: '',
-  /** Per-invocation wall clock for the scripts, in seconds. */
-  stepTimeoutSec: 1500,
+  /** Per-invocation wall clock for the scripts, in seconds. Must exceed the
+   *  chair timeout (1800s default) or a legitimately slow final review would be killed. */
+  stepTimeoutSec: 1900,
+  /**
+   * Model that writes the final meta review, as a reviewer spec such as
+   * "codex:gpt-5.5" or "api:deepseek-reasoner". Empty means: pick the strongest
+   * reviewer available on this machine at chair time, or fall back to a subagent.
+   */
+  finalReviewer: '',
 }
 
 /** Fallback when SKILL.md carries no frontmatter description. */
@@ -52,7 +59,11 @@ const TOOL_DESCRIPTION = [
   '`init` creates a run directory and returns its absolute path; pass that path as `run` to every later action.',
   '`next` is the loop driver: it validates the files written so far and returns what to do next; follow it instead of guessing.',
   'It stops on weak evidence (fewer than 3 full texts read, or all low quality) unless `force` is set — do not force without the user asking.',
-  'Writes notes as JSON files inside the run directory. `report` renders a self-contained HTML report and returns its URL.',
+  'Writes notes as JSON files inside the run directory. After the independent reviews, `chair` has one strong model',
+  'synthesise them into a final meta review: consensus, real disagreements and how to settle them, the cheapest falsification',
+  'experiments, and what the user must verify. Which model that is comes from `finalReviewer` (config or parameter); without',
+  'one it picks the strongest reviewer available here or writes the material for a subagent with `dump`.',
+  '`report` renders a self-contained HTML report and returns its URL.',
   'Peer review calls other vendors\' local CLI models (codex, gemini, claude, codebuddy) or an OpenAI-compatible endpoint;',
   'run `reviewers` first to see what this machine has, and use `dump` when none is available so the reviews can be delegated instead.',
 ].join(' ')
@@ -67,7 +78,8 @@ const PARAMETERS = {
       description:
         'init: create the run. next: validate progress and get the next step. search: run the queries from 01_plan.json. ' +
         'fetch: download full texts for screened candidates. reviewers: list available peer-review models. ' +
-        'review: call them for meta review. report: render the HTML report.',
+        'review: call them for meta review. chair: have one strong model synthesise a final meta review across the proposals. ' +
+        'report: render the HTML report.',
     },
     run: {
       type: 'string',
@@ -102,7 +114,14 @@ const PARAMETERS = {
       items: { type: 'string' },
       description: 'review only: reviewer names, optionally as `name:model` (e.g. codex:gpt-5). Defaults to every available reviewer.',
     },
-    timeoutSec: { type: 'integer', description: 'review only: per-call timeout for one reviewer, default 900.' },
+    timeoutSec: { type: 'integer', description: 'review and chair: per-call timeout for one model, default 900 (chair: 1800).' },
+    finalReviewer: {
+      type: 'string',
+      description:
+        'init and chair: which model writes the final meta review, as `name` or `name:model` (e.g. "codex:gpt-5.5", "api:deepseek-reasoner"). ' +
+        'init records it for the run; chair overrides it. Defaults to the plugin config, then to the strongest reviewer available here. ' +
+        'Prefer a different vendor than the one that wrote the proposals.',
+    },
     force: { type: 'boolean', description: 'next only: continue despite weak evidence. Set it only when the user said to.' },
     again: { type: 'boolean', description: 'search only: discard existing candidates and search again.' },
     dump: {
@@ -285,6 +304,8 @@ function buildInvocation({ action, args, runDir, cwd, config }) {
       if (typeof args.idea === 'string' && args.idea.trim()) argv.push('--idea', args.idea.trim())
       if (Number.isFinite(args.refs)) argv.push('--refs', String(Math.trunc(args.refs)))
       if (typeof args.writerModel === 'string' && args.writerModel.trim()) argv.push('--writer-model', args.writerModel.trim())
+      const finalReviewer = nonEmpty(args.finalReviewer) || nonEmpty(config.finalReviewer)
+      if (finalReviewer) argv.push('--final-reviewer', finalReviewer)
       break
     }
     case 'next': {
@@ -310,6 +331,14 @@ function buildInvocation({ action, args, runDir, cwd, config }) {
     case 'reviewers': {
       argv.push('reviewers')
       if (WRITERS.includes(args.writer)) argv.push('--writer', args.writer)
+      break
+    }
+    case 'chair': {
+      argv.push('chair', runDir)
+      const finalReviewer = nonEmpty(args.finalReviewer) || nonEmpty(config.finalReviewer)
+      if (finalReviewer) argv.push('--reviewer', finalReviewer)
+      if (Number.isFinite(args.timeoutSec)) argv.push('--timeout', String(Math.trunc(args.timeoutSec)))
+      if (args.dump === true) argv.push('--dump')
       break
     }
     case 'review': {
@@ -403,6 +432,10 @@ function lastLines(text, count = 12) {
 
 function numberOr(value, fallback) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function nonEmpty(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : ''
 }
 
 // ---------------------------------------------------------------------------

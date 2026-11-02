@@ -9,6 +9,7 @@
  *   GET /idea-review/api/runs        -> { runs: RunSummary[] }
  *   GET /idea-review/api/runs/<key>  -> { run: RunSummary }
  *   GET /idea-review/report/<key>    -> self-contained report HTML
+ * Every RunSummary also carries the optional `final` meta-review block.
  *
  * Constraints (DESIGN.md "硬性约束"): only `react` may be required, every visible
  * string lives in the zh/en dictionaries below, and all styling uses theme tokens.
@@ -60,6 +61,13 @@ window.__ModuleLoader__.load({
       'detail.updated': '更新时间',
       'detail.lastAction': '最近动作',
       'detail.dir': '运行目录',
+      'final.title': '最终评审',
+      'final.byline': '由 {byline} 综合',
+      'final.generatedAt': '生成于 {time}',
+      'final.sameFamily': '与 proposal 写作出自同一家模型厂商，独立性有限。',
+      'final.failed': '最终评审失败',
+      'final.failedNote': '最终评审没有完成：{error}',
+      'final.empty': '（终审没有给出结论）',
       'action.openReport': '打开报告',
       'action.copyDir': '复制运行目录',
       'action.copied': '已复制',
@@ -110,6 +118,13 @@ window.__ModuleLoader__.load({
       'detail.updated': 'Updated',
       'detail.lastAction': 'Last action',
       'detail.dir': 'Run directory',
+      'final.title': 'Final review',
+      'final.byline': 'Written by {byline}',
+      'final.generatedAt': 'Generated {time}',
+      'final.sameFamily': 'Shares the proposal writer’s vendor, so its independence is limited.',
+      'final.failed': 'Final review failed',
+      'final.failedNote': 'The final review did not complete: {error}',
+      'final.empty': '(The final review returned no verdict.)',
       'action.openReport': 'Open report',
       'action.copyDir': 'Copy run directory',
       'action.copied': 'Copied',
@@ -155,6 +170,12 @@ window.__ModuleLoader__.load({
 .irx_pill{flex:none;display:inline-flex;align-items:center;gap:5px;height:19px;padding:0 7px;border:.5px solid var(--dsw-alias-border-l3);border-radius:10px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;white-space:nowrap}
 .irx_dot{flex:none;width:5px;height:5px;border-radius:50%;background:var(--dsw-alias-label-caption)}
 .irx_dotOn{background:var(--dsw-alias-state-success-primary)}
+.irx_dotBusiness{background:var(--dsw-alias-state-business-primary)}
+.irx_dotWarn{background:var(--dsw-alias-state-warn-primary)}
+.irx_dotFail{background:var(--dsw-alias-state-error-primary)}
+.irx_pillFinal{border-color:transparent;background:var(--dsw-alias-state-business-tertiary);color:var(--dsw-alias-label-primary)}
+.irx_pillWarn{border-color:transparent;background:var(--dsw-alias-state-warn-tertiary);color:var(--dsw-alias-label-primary)}
+.irx_pillFail{border-color:transparent;background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary)}
 .irx_qualityBar{display:flex;align-items:stretch;width:100%;height:8px;border-radius:4px;overflow:hidden;background:var(--dsw-alias-bg-skeleton)}
 .irx_qualityBar>span{display:block;flex-basis:0;min-width:0}
 .irx_qInline{flex:none;display:inline-flex;align-items:center;gap:10px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:20px;white-space:nowrap}
@@ -184,6 +205,14 @@ window.__ModuleLoader__.load({
 .irx_iconButton:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .irx_card{margin:0 0 14px;padding:14px 16px;border:.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l4));border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-1))}
 .irx_cardTitle{margin:0 0 10px;color:var(--dsw-alias-label-tertiary);font-size:var(--dsh-content-font-size-secondary,13px);font-weight:400;line-height:20px}
+.irx_cardTitleInline{margin:0}
+.irx_finalHead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:6px}
+.irx_finalTime{flex:none;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;white-space:nowrap}
+.irx_finalBy{margin:0 0 8px;color:var(--dsw-alias-label-secondary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:20px;overflow-wrap:anywhere}
+.irx_finalVerdict{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--dsw-alias-label-primary);font-size:var(--dsh-content-font-size,14px);line-height:1.6}
+.irx_finalError{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--dsw-alias-label-tertiary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:20px}
+.irx_caveat{display:flex;align-items:flex-start;gap:6px;margin:10px 0 0;padding:6px 8px;border-radius:var(--dsw-radius-sm);background:var(--dsw-alias-state-warn-tertiary);color:var(--dsw-alias-label-primary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:20px;overflow-wrap:anywhere}
+.irx_caveat .irx_dot{margin-top:7px}
 .irx_countGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:12px 16px}
 .irx_countValue{font-size:16px;font-weight:500;line-height:24px;font-variant-numeric:tabular-nums}
 .irx_countLabel{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
@@ -239,6 +268,20 @@ window.__ModuleLoader__.load({
       return typeof value === 'string' ? value : ''
     }
 
+    /** Normalize the optional final meta review; absent or malformed means "none". */
+    function normalizeFinal(raw) {
+      const source = raw && typeof raw === 'object' ? raw : {}
+      return {
+        present: source.present === true,
+        reviewer: toText(source.reviewer),
+        family: toText(source.family),
+        sameFamilyAsWriter: source.sameFamilyAsWriter === true,
+        generatedAt: typeof source.generatedAt === 'string' ? source.generatedAt : null,
+        verdict: toText(source.verdict),
+        error: toText(source.error),
+      }
+    }
+
     /** Normalize one Host summary; missing or malformed fields fall back to zero. */
     function normalizeRun(raw) {
       const source = raw && typeof raw === 'object' ? raw : {}
@@ -260,6 +303,7 @@ window.__ModuleLoader__.load({
           medium: toCount(quality.medium),
           low: toCount(quality.low),
         },
+        final: normalizeFinal(source.final),
         hasReport: source.hasReport === true,
         reportMtime: typeof source.reportMtime === 'string' ? source.reportMtime : null,
       }
@@ -553,6 +597,31 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /** Compact list chip for the final meta review: present, same-family warning, or failure. */
+    function finalChip(final, tr) {
+      if (final.present) {
+        const warn = final.sameFamilyAsWriter
+        return h(
+          'span',
+          {
+            className: warn ? 'irx_pill irx_pillWarn' : 'irx_pill irx_pillFinal',
+            title: warn ? tr('final.sameFamily') : undefined,
+          },
+          h('span', { className: warn ? 'irx_dot irx_dotWarn' : 'irx_dot irx_dotBusiness', 'aria-hidden': 'true' }),
+          tr('final.title')
+        )
+      }
+      if (final.error !== '') {
+        return h(
+          'span',
+          { className: 'irx_pill irx_pillFail', title: final.error },
+          h('span', { className: 'irx_dot irx_dotFail', 'aria-hidden': 'true' }),
+          tr('final.failed')
+        )
+      }
+      return null
+    }
+
     return {
       inject: ['slots', 'locale'],
       apply(ctx) {
@@ -735,6 +804,7 @@ window.__ModuleLoader__.load({
                   'span',
                   { className: 'irx_rowTop' },
                   h('span', { className: 'irx_rowTitle' }, run.idea.trim() === '' ? tr('row.noIdea') : run.idea),
+                  finalChip(run.final, tr),
                   h(
                     'span',
                     { className: 'irx_pill' },
@@ -761,6 +831,40 @@ window.__ModuleLoader__.load({
             listBody = renderState(h(PanelIcon, { size: 26 }), tr('empty.title'), tr('empty.body'), null)
           } else {
             listBody = h('ul', { className: 'irx_list' }, list.runs.map(renderRow))
+          }
+
+          const renderFinalCard = (run) => {
+            const final = run.final
+            if (!final.present && final.error === '') return null
+            const bylineParts = [final.reviewer, final.family].filter((part) => part !== '')
+            const byline = bylineParts.length > 0 ? tr('final.byline', { byline: bylineParts.join(' / ') }) : ''
+            const generated = final.present ? formatDate(final.generatedAt, dateLocale) : ''
+            const head = h(
+              'div',
+              { className: 'irx_finalHead' },
+              h('h3', { className: 'irx_cardTitle irx_cardTitleInline' }, tr('final.title')),
+              generated === '' ? null : h('span', { className: 'irx_finalTime' }, tr('final.generatedAt', { time: generated }))
+            )
+            const body = final.present
+              ? h('p', { className: 'irx_finalVerdict' }, final.verdict !== '' ? final.verdict : tr('final.empty'))
+              : h('p', { className: 'irx_finalError' }, tr('final.failedNote', { error: final.error }))
+            const caveat =
+              final.present && final.sameFamilyAsWriter
+                ? h(
+                    'p',
+                    { className: 'irx_caveat' },
+                    h('span', { className: 'irx_dot irx_dotWarn', 'aria-hidden': 'true' }),
+                    tr('final.sameFamily')
+                  )
+                : null
+            return h(
+              'section',
+              { className: 'irx_card', 'aria-label': tr('final.title') },
+              head,
+              byline === '' ? null : h('p', { className: 'irx_finalBy' }, byline),
+              body,
+              caveat
+            )
           }
 
           const renderDetailBody = (run) => {
@@ -851,7 +955,16 @@ window.__ModuleLoader__.load({
               infoRow('lastAction', tr('detail.lastAction'), run.lastAction === null ? none : run.lastAction, false),
               infoRow('dir', tr('detail.dir'), run.dir === '' ? none : run.dir, true)
             )
-            return h('div', null, h('p', { key: 'idea', className: 'irx_idea' }, idea), actions, counts, quality, info)
+            return h(
+              'div',
+              null,
+              h('p', { key: 'idea', className: 'irx_idea' }, idea),
+              renderFinalCard(run),
+              actions,
+              counts,
+              quality,
+              info
+            )
           }
 
           let detailBody

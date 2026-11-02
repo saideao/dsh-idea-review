@@ -169,3 +169,63 @@ I2 起的 `seed` 照抄 07_seeds.json 里对应的那一条（第一条对应 I2
   }
 ]
 ```
+
+## 11. 11_final_review.json（最终评审，一般由 chair 写）
+
+`chair` 调一次最强的模型，把几份 proposal 和它们收到的评审横向收拢成一份最终评审。`review` 部分必须符合 `assets/schemas.zh.json` 里的 `FinalReview`，`next` 按它检查；外层信封由 `chair` 自己写，用 `--dump` 交子代理代写时由你补上。
+
+```json
+{
+  "reviewer": "codex",
+  "label": "codex（openai）",
+  "model": "gpt-5.5",
+  "family": "openai",
+  "same_family_as_writer": false,
+  "generated_at": "2026-11-02T17:10:00",
+  "inputs": {"proposals": 1, "meta_reviews": 2, "chairs": 1},
+  "review": {
+    "verdict": "I1 方向成立，但缺中文基线、数据授权会先卡住；先做最便宜的分布对齐实验，再决定投入。",
+    "per_idea": [
+      {
+        "proposal_id": "I1",
+        "status": "needs_evidence",
+        "summary": "方向成立，但关键结论缺中文基线。",
+        "main_risks": ["中文问卷数据授权", "指标不统一"],
+        "supporting_papers": ["P03"]
+      }
+    ],
+    "consensus": [
+      {"issue": "中文问卷缺少可比基线", "raised_by": ["codex", "claude"], "severity": "serious"}
+    ],
+    "disagreements": [
+      {
+        "topic": "用哪个分布指标",
+        "positions": ["codex：用 FID", "claude：用人口统计偏差"],
+        "how_to_settle": "两个都算，看结论是否相反"
+      }
+    ],
+    "top_risks": ["拿不到中文问卷", "基线不可比", "跨语言差异不可控"],
+    "cheapest_experiments": [
+      {
+        "experiment": "拿一份中文问卷跑 500 份回答，和真实分布对比",
+        "for_idea": "I1",
+        "kill_if": "分布距离和随机抽样一样",
+        "est_days": "3"
+      }
+    ],
+    "must_verify": ["P03 是否真的给了中文结果（p.9）"],
+    "next_steps": ["先确认问卷数据授权", "再定指标和基线"],
+    "uncertainties": ["不清楚 CFPS 的授权条款能不能覆盖商业用途"]
+  },
+  "error": ""
+}
+```
+
+字段规矩：
+
+- `review.per_idea[].status` 只能是 `clear`（还没看到硬伤）/ `contested`（评审分歧大）/ `needs_evidence`（关键结论缺证据）/ `blocked`（有评审指出致命问题）。
+- `review.consensus[].severity` 只能是 `fatal` / `serious` / `minor`。
+- `per_idea[].proposal_id`、`cheapest_experiments[].for_idea` 只能写 `08_proposals.json` 里真实存在的 `I1`、`I2`；`supporting_papers`、`must_verify` 里只能引用候选里的编号（`P03`、`L01`），没读过的不要写，更不要凭记忆补论文、页码、数字。
+- `verdict` 是文字总评，不是分数；任何地方都不评分、不下"值得做/不值得做"的结论、不替作者拍板。
+- 用 `chair --dump` 交子代理代写时，信封字段填：`"reviewer": "self"`、`"family"` 填自己公司、`"same_family_as_writer": true`、`generated_at` 用 ISO 时间、`inputs` 按实际数量、`error` 留空。
+- `chair` 调模型失败时会写一条带 `error` 的记录；`next` 会提示失败原因，换模型重跑或者 dump 交子代理，不要自己伪造 `review`。

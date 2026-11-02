@@ -35,7 +35,8 @@ T = {
             "确实想用现有的文献跑完，让 agent 运行 <code>ir.py next {run} --force</code>。",
         ],
         "forced": "<b>文献证据偏弱</b>：{why}。下面的空白和 proposal 只能当线索，先多补几篇文献再下判断。",
-        "toc": ["① 检索", "② 文献", "③ 空白", "④ 方案和评审", "⑤ 你拍板", "附录"], "to_dark": "切到深色", "to_light": "切到浅色",
+        "toc": ["① 检索", "② 文献", "③ 空白", "④ 方案和评审", "⑤ 最终评审", "⑥ 你拍板", "附录"],
+        "to_dark": "切到深色", "to_light": "切到浅色",
         "field": "领域", "concepts": "核心概念", "queries": "检索式",
         "search_note": "检索源：Semantic Scholar、arXiv、OpenAlex。先按标题和摘要初筛，再按相关度从高到低下载全文来精读，下载失败的往下顺延；"
                        "候选里能下载的用完了还不够数，会从检索结果里再多取一些候选。",
@@ -85,7 +86,29 @@ T = {
         "feasibility": "可行性", "bottleneck": "卡点：", "workaround": "绕法：", "falsify": "最便宜的证伪实验",
         "compare": "对比：", "metric": "指标：", "give_up": "放弃：", "go_on": "继续：", "before_invest": "投入之前必须回答",
         "review_failed": "评审失败：", "no_review": "还没有评审结果。", "not_written": "这份 proposal 没写出来：",
-        "decide": "⑤ 你拍板", "decide_lead": "报告只帮你把材料摆齐。下面四个问题答得上来，再决定要不要投入几个月。",
+        "final": "⑤ 最终评审",
+        "final_lead": "这不是又一份评审：它把上面几份独立评审的意见合起来，说清每份 proposal 现在处在什么状态、最该先动哪一个；"
+                      "它不评分，也不替你判断值不值得做。",
+        "final_by": "由 <b>{label}</b> 写成（{family}）",
+        "final_inputs": "综合了 {proposals} 份 proposal、{meta_reviews} 份元评审、{chairs} 份评审汇总",
+        "final_at": "生成于 {at}",
+        "final_same_family": "这份最终评审和写 proposal 的是同一家（{family}），独立性打折：它更可能认同 proposal 自己的前提，读的时候留个心眼。",
+        "final_verdict": "总评",
+        "final_per_idea": "每份 proposal 的状态",
+        "final_status": {"clear": "没看到硬伤", "contested": "有分歧", "needs_evidence": "证据不足", "blocked": "被卡住"},
+        "final_severity": {"fatal": "致命", "serious": "严重", "minor": "次要"},
+        "final_settle": "怎么判定",
+        "final_risks_title": "风险与先做的实验",
+        "final_top_risks": "最可能致命的问题",
+        "final_for_idea": "验证",
+        "final_days": "{d} 天",
+        "final_next": "下一步",
+        "final_next_steps": "建议的顺序",
+        "final_uncertainties": "还不确定的地方",
+        "final_failed_title": "这一节没有生成",
+        "final_failed": "最终评审调用失败了，下面是错误信息：",
+        "decide_no_final": "⑤ 你拍板", "decide": "⑥ 你拍板",
+        "decide_lead": "报告只帮你把材料摆齐。下面四个问题答得上来，再决定要不要投入几个月。",
         "checklist": ["评审说撞车的那几篇，我自己点开读过正文了吗？还撞吗？", "几家都提到的死因是什么？我有办法解决吗？",
                       "证伪实验开始之前，\"出现什么结果就放弃\"我写下来了吗？", "三天内跑完了吗？结果是什么？"],
         "decide_note": "跑实验的时候自己盯着看：下一个好问题，往往就藏在那些看不懂的现象里。",
@@ -110,7 +133,8 @@ T = {
             "If you really want to finish with the papers you have, ask the agent to run <code>ir.py next {run} --force</code>.",
         ],
         "forced": "<b>Weak evidence</b>: {why}. Treat the gaps and proposals below as leads only, and add more papers before drawing conclusions.",
-        "toc": ["① Search", "② Papers", "③ Gaps", "④ Proposals & reviews", "⑤ Your call", "Appendix"], "to_dark": "Dark mode", "to_light": "Light mode",
+        "toc": ["① Search", "② Papers", "③ Gaps", "④ Proposals & reviews", "⑤ Final review", "⑥ Your call", "Appendix"],
+        "to_dark": "Dark mode", "to_light": "Light mode",
         "field": "Field", "concepts": "Core concepts", "queries": "Queries",
         "search_note": "Sources: Semantic Scholar, arXiv, OpenAlex. Papers are screened by title and abstract first, then full texts are downloaded "
                        "in order of relevance; failed downloads are replaced by the next paper. When the downloadable candidates run out, more "
@@ -170,7 +194,30 @@ T = {
         "workaround": "Workaround: ", "falsify": "Cheapest falsification", "compare": "Compare against: ", "metric": "Metric: ",
         "give_up": "Give up if: ", "go_on": "Continue if: ", "before_invest": "Answer before investing", "review_failed": "Review failed: ",
         "no_review": "No reviews yet.", "not_written": "This proposal was not written: ",
-        "decide": "⑤ Your call", "decide_lead": "The report only lays out the material. Answer these four questions before spending months on it.",
+        "final": "⑤ Final review",
+        "final_lead": "This is not another review: it pulls the independent meta reviews together and says where each proposal "
+                      "stands and what to do first. It gives no score and does not decide for you whether the idea is worth doing.",
+        "final_by": "Written by <b>{label}</b> ({family})",
+        "final_inputs": "synthesised from {proposals} proposal(s), {meta_reviews} meta review(s) and {chairs} review summary(ies)",
+        "final_at": "generated {at}",
+        "final_same_family": "This final review comes from the same vendor as the proposal writer ({family}), so its independence "
+                             "is reduced: it is more likely to accept the proposal's own premises. Read it with that in mind.",
+        "final_verdict": "Overall",
+        "final_per_idea": "Where each proposal stands",
+        "final_status": {"clear": "No hard objection", "contested": "Contested", "needs_evidence": "Needs evidence", "blocked": "Blocked"},
+        "final_severity": {"fatal": "Fatal", "serious": "Serious", "minor": "Minor"},
+        "final_settle": "What would settle it",
+        "final_risks_title": "Risks and what to run first",
+        "final_top_risks": "Most fatal problems",
+        "final_for_idea": "for",
+        "final_days": "{d} days",
+        "final_next": "Next steps",
+        "final_next_steps": "Suggested order",
+        "final_uncertainties": "Still uncertain",
+        "final_failed_title": "This section was not generated",
+        "final_failed": "The final-review model call failed. Error: ",
+        "decide_no_final": "⑤ Your call", "decide": "⑥ Your call",
+        "decide_lead": "The report only lays out the material. Answer these four questions before spending months on it.",
         "checklist": ["Have I opened and read the papers the reviewers say overlap? Do they still overlap?",
                       "What cause of death did several reviewers name? Can I solve it?",
                       "Before starting the falsification experiment, did I write down which result means giving up?",
@@ -185,6 +232,10 @@ T = {
     },
 }
 LEVEL = {"zh": {"high": "高", "medium": "中", "low": "低"}, "en": {"high": "High", "medium": "Medium", "low": "Low"}}
+# 最终评审的状态和严重程度：用报告里已有的 badge 类和主题色变量，深色模式跟着走
+FINAL_STATUS = {"clear": ("b-high", "var(--green)"), "contested": ("b-pre", "var(--violet)"),
+                "needs_evidence": ("b-medium", "var(--amber)"), "blocked": ("b-low", "var(--red)")}
+FINAL_SEVERITY = {"fatal": "b-warn", "serious": "b-medium", "minor": "b-unk"}
 
 
 def esc(text) -> str:
@@ -237,6 +288,7 @@ def build(run: Run, site: bool = False) -> Path:
     proposals = run.load("08_proposals", [])
     metas = run.load("09_meta_reviews", [])
     chairs = {c["proposal_id"]: c for c in run.load("10_chair", [])}
+    final = run.load("11_final_review")
     usage = run.load("usage", {})
     writer = meta.get("writer", {})
     writer_name = writer.get("model") or t["agent"].format(family=writer.get("family", "?"))
@@ -318,8 +370,11 @@ def build(run: Run, site: bool = False) -> Path:
         else:
             w(f'<div class="warn">{t["forced"].format(why=why)}</div>\n')
     w("</div></header>\n")
-    anchors = ["search", "papers", "gaps", "proposals", "decide", "appendix"]
-    w('<nav class="toc"><div class="wrap"><div class="links">' + "".join(f'<a href="#{a}">{n}</a>' for a, n in zip(anchors, t["toc"]))
+    # 有最终评审时目录多一条 ⑤；没有时保持 6 条，并把“你拍板”编回 ⑤
+    has_final = isinstance(final, dict)
+    anchors = ["search", "papers", "gaps", "proposals"] + (["final"] if has_final else []) + ["decide", "appendix"]
+    toc_items = t["toc"] if has_final else t["toc"][:4] + [t["decide_no_final"]] + t["toc"][6:]
+    w('<nav class="toc"><div class="wrap"><div class="links">' + "".join(f'<a href="#{a}">{n}</a>' for a, n in zip(anchors, toc_items))
       + f'</div><button type="button" id="theme-toggle" class="theme" data-to-dark="{t["to_dark"]}" data-to-light="{t["to_light"]}" hidden></button>'
       + "</div></nav>\n")
     w('<main class="wrap">\n')
@@ -539,8 +594,129 @@ def build(run: Run, site: bool = False) -> Path:
         w(f'<p class="meta">{t["skipped"] if stopped else t["not_done"]}</p>\n')
     w("</section>\n")
 
-    # ---------- ⑤ 你拍板、附录 ----------
-    w(f'<section id="decide"><h2>{t["decide"]}</h2><p class="lead">{t["decide_lead"]}</p><div class="card"><ul class="checklist">'
+    # ---------- ⑤ 最终评审 ----------
+    if has_final:
+        rev = final.get("review") if isinstance(final.get("review"), dict) else None
+        err = final.get("error") or ""
+        w(f'<section id="final"><h2>{t["final"]}</h2>\n')
+        if err or not rev:
+            detail = (f'{t["final_failed"]} <span class="error">{esc(err)}</span>' if err
+                      else f'<span class="meta">{t["not_done"]}</span>')
+            w(f'<div class="warn"><b>{t["final_failed_title"]}</b>'
+              f'<p style="margin:6px 0 0">{detail}</p></div>\n')
+        if rev:
+            label = final.get("label") or final.get("model") or final.get("reviewer") or "?"
+            family = final.get("family") or "?"
+            bits = [t["final_by"].format(label=esc(label), family=esc(family))]
+            inputs = final.get("inputs")
+            if isinstance(inputs, dict):
+                bits.append(t["final_inputs"].format(proposals=inputs.get("proposals", 0),
+                                                     meta_reviews=inputs.get("meta_reviews", 0),
+                                                     chairs=inputs.get("chairs", 0)))
+            at = (final.get("generated_at") or "").replace("T", " ")
+            if at:
+                bits.append(t["final_at"].format(at=esc(at)))
+            w(f'<p class="lead">{t["final_lead"]}</p>\n<p class="meta">{" · ".join(bits)}</p>\n')
+            if final.get("same_family_as_writer"):
+                w(f'<div class="warn">{t["final_same_family"].format(family=esc(family))}</div>\n')
+            verdict = rev.get("verdict")
+            if verdict:
+                w(f'<div class="card proposal"><div class="tag">{t["final_verdict"]}</div>'
+                  f'<p style="margin:4px 0 0;font-size:16px">{refs(verdict)}</p></div>\n')
+
+            # 每份 proposal 的状态：标题从 08_proposals 里查，支撑论文用 refs() 变成链接
+            prop_titles = {r["proposal_id"]: (r.get("proposal") or {}).get("title") or "" for r in proposals}
+            per_idea = [x for x in (rev.get("per_idea") or []) if isinstance(x, dict)]
+            if per_idea:
+                w(f'<h3>{t["final_per_idea"]}</h3>\n')
+                for idea in per_idea:
+                    raw_pid = idea.get("proposal_id") or "?"
+                    pid = esc(raw_pid)
+                    status = idea.get("status") or ""
+                    badge_cls, color = FINAL_STATUS.get(status, ("b-unk", "var(--muted)"))
+                    status_label = t["final_status"].get(status, status)
+                    title = prop_titles.get(raw_pid) or ""
+                    pid_html = (f'<a class="ref" href="#proposal-{pid}">{pid}</a>'
+                                if raw_pid in prop_titles else f'<span class="ref">{pid}</span>')
+                    risks = "".join(f"<li>{refs(x)}</li>" for x in (idea.get("main_risks") or []))
+                    supp = " ".join(refs(p) for p in (idea.get("supporting_papers") or []))
+                    summary = idea.get("summary")
+                    w(f'<div class="card" style="border-left:4px solid {color}"><div class="tag">{pid_html}'
+                      + (f" · {esc(title)}" if title else "")
+                      + f' <span class="badge {badge_cls}">{esc(status_label)}</span></div>\n'
+                      + (f'<div>{refs(summary)}</div>' if summary else "")
+                      + (f'<h4>{t["risks"]}</h4><ul class="tight">{risks}</ul>' if risks else "")
+                      + (f'<div class="kv"><b>{t["evidence"]}</b>{supp}</div>' if supp else "")
+                      + "</div>\n")
+
+            # 几家都提到的问题
+            consensus = [x for x in (rev.get("consensus") or []) if isinstance(x, dict)]
+            if consensus:
+                w(f'<h3>{t["consensus"]}</h3><ul class="tight">\n')
+                for c in consensus:
+                    sev = c.get("severity") or ""
+                    sev_cls = FINAL_SEVERITY.get(sev, "b-unk")
+                    by = t["sep"].join(esc(x) for x in (c.get("raised_by") or []))
+                    w(f'<li>{refs(c.get("issue"))} <span class="badge {sev_cls}">{esc(t["final_severity"].get(sev, sev))}</span>'
+                      + (f' <span class="meta">{t["lp"]}{by}{t["rp"]}</span>' if by else "") + "</li>\n")
+                w("</ul>\n")
+
+            # 有分歧的地方：how_to_settle 单独放进 callout，和分歧本身区分开
+            disagreements = [x for x in (rev.get("disagreements") or []) if isinstance(x, dict)]
+            if disagreements:
+                w(f'<h3>{t["disagree"]}</h3><div class="grid2">\n')
+                for d in disagreements:
+                    positions = "".join(f"<li>{refs(p)}</li>" for p in (d.get("positions") or []))
+                    settle = d.get("how_to_settle")
+                    w(f'<div class="card"><b>{esc(d.get("topic"))}</b>'
+                      + (f'<ul class="tight">{positions}</ul>' if positions else "")
+                      + (f'<div class="callout" style="margin:10px 0 0;border-left:3px solid var(--accent)">'
+                         f'<b>{t["final_settle"]}</b>{refs(settle)}</div>' if settle else "")
+                      + "</div>\n")
+                w("</div>\n")
+
+            # 风险与先做的实验
+            top_risks = [x for x in (rev.get("top_risks") or []) if x]
+            experiments = [x for x in (rev.get("cheapest_experiments") or []) if isinstance(x, dict)]
+            if top_risks or experiments:
+                w(f'<h3>{t["final_risks_title"]}</h3>\n')
+                if top_risks:
+                    w(f'<h4>{t["final_top_risks"]}</h4><ol class="tight">'
+                      + "".join(f"<li>{refs(x)}</li>" for x in top_risks) + "</ol>\n")
+                if experiments:
+                    w(f'<h4>{t["falsify"]}</h4><div class="grid2">\n')
+                    for e in experiments:
+                        for_idea = e.get("for_idea") or ""
+                        days = e.get("est_days") or ""
+                        tag_bits = [x for x in (f'{t["final_for_idea"]} {esc(for_idea)}' if for_idea else "",
+                                                t["final_days"].format(d=esc(days)) if days else "") if x]
+                        kill = e.get("kill_if")
+                        w(f'<div class="card">' + (f'<div class="tag">{t["sep"].join(tag_bits)}</div>' if tag_bits else "")
+                          + f'<b>{refs(e.get("experiment"))}</b>'
+                          + (f'<div class="kv kill"><b>{t["give_up"]}</b>{refs(kill)}</div>' if kill else "")
+                          + "</div>\n")
+                    w("</div>\n")
+
+            # 下一步：核实、顺序、还不确定的地方
+            must_verify = [x for x in (rev.get("must_verify") or []) if x]
+            next_steps = [x for x in (rev.get("next_steps") or []) if x]
+            uncertainties = [x for x in (rev.get("uncertainties") or []) if x]
+            if must_verify or next_steps or uncertainties:
+                w(f'<h3>{t["final_next"]}</h3>\n')
+                if must_verify:
+                    w(f'<h4>{t["verify"]}</h4><ul class="tight">'
+                      + "".join(f"<li>{refs(x)}</li>" for x in must_verify) + "</ul>\n")
+                if next_steps:
+                    w(f'<h4>{t["final_next_steps"]}</h4><ol class="tight">'
+                      + "".join(f"<li>{refs(x)}</li>" for x in next_steps) + "</ol>\n")
+                if uncertainties:
+                    w(f'<h4>{t["final_uncertainties"]}</h4><ul class="tight">'
+                      + "".join(f"<li>{refs(x)}</li>" for x in uncertainties) + "</ul>\n")
+        w("</section>\n")
+
+    # ---------- ⑥ 你拍板、附录 ----------
+    decide_title = t["decide"] if has_final else t["decide_no_final"]
+    w(f'<section id="decide"><h2>{decide_title}</h2><p class="lead">{t["decide_lead"]}</p><div class="card"><ul class="checklist">'
       + "".join(f'<li><label><input type="checkbox">{c}</label></li>' for c in t["checklist"])
       + f'</ul><p class="meta">{t["decide_note"]}</p></div></section>\n')
     w(f'<section id="appendix"><h2>{t["appendix"]}</h2><h3>{t["who"]}</h3><div class="table-wrap"><table><thead><tr>'

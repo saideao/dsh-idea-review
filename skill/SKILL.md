@@ -1,6 +1,6 @@
 # idea-review：查文献、找空白、写 proposal、换模型挑毛病
 
-分工：要动脑子的步骤你自己做（拆检索词、初筛、精读评质量、找空白、写 proposal、汇总评审意见）；固定的步骤交给 `idea_review` 工具（它替你跑这个 skill 里的 python 脚本，检索、下载全文、检查文件格式和进度、调用别家模型做元评审、出 HTML 报告）。
+分工：要动脑子的步骤你自己做（拆检索词、初筛、精读评质量、找空白、写 proposal、汇总评审意见）；固定的步骤交给 `idea_review` 工具（它替你跑这个 skill 里的 python 脚本，检索、下载全文、检查文件格式和进度、调用别家模型做元评审和最终评审、出 HTML 报告）。
 
 这样分是因为：检索接口有限流和去重的细节，PDF 要校验、按页标号；调别家命令行工具的参数错一个就会读到用户的配置或者改走 API 计费；"证据不够就停"这条规矩要每次都执行，不能看心情。这些写死在脚本里，你把精力放在读论文和写东西上。
 
@@ -12,18 +12,19 @@
 
 | action | 作用 | 参数 |
 |---|---|---|
-| `init` | 建运行目录、记下 idea 和数量 | `idea`、`lang`、`writer`、`writerModel`、`refs`（`run` 可省，省了自动生成） |
+| `init` | 建运行目录、记下 idea 和数量 | `idea`、`lang`、`writer`、`writerModel`、`refs`、`finalReviewer`（`run` 可省，省了自动生成） |
 | `next` | 检查进度和文件格式，告诉你下一步 | `run`，`force` |
 | `search` | 按检索式检索、合并去重、取候选 | `run`，`queries`、`papersDir`、`again` |
 | `fetch` | 按初筛结果下载全文、抽文字 | `run` |
 | `reviewers` | 看本机能用哪些别家的评审模型 | `writer` |
 | `review` | 请别家模型做元评审 | `run`，`reviewers`、`timeoutSec`、`dump` |
+| `chair` | 最终评审：用最强的模型跨 proposal 汇总 | `run`，`finalReviewer`、`timeoutSec`、`dump` |
 | `report` | 渲染 HTML 报告 | `run` |
 
 - `writer` 默认 `other`。你是 DeepSeek 的模型，填 `other`，`writerModel` 填你的模型名；确定自己是 Claude / GPT / Gemini / 混元时才填 `anthropic` / `openai` / `google` / `tencent`。元评审要换别家的模型，这一项决定排除谁。
 - 工具的返回是 JSON：`runDir` 是本次运行目录（**`init` 生成，之后每一步都把它原样传成 `run`**），`output` 是脚本的 stdout（**`next` 的"下一步"就在这里，每步做完都要读它**），`message` 是失败原因（成功时为空），还有 `ok`、`exitCode`；`report` 成功时还多一个 `reportUrl`。`ok` 为 false 时先按 `message` 修（比如某个 JSON 格式不对），别把失败当成功往下走。
-- 脚本的提示是命令行口吻（比如"运行 ir.py search RUN"、"加 --force"、"`python3 scripts/report.py RUN`"），一律按上面的参数表换成 `idea_review` 调用。
-- 环境：不用 uv、不用管 pypdf，插件调用脚本时已处理；PDF 抽文字优先用 pypdf，缺了会退回 `pdftotext`。`search` / `fetch` / `review` 要联网。
+- 脚本的提示是命令行口吻（比如"运行 ir.py search RUN"、"运行 ir.py chair RUN"、"加 --force"、"`python3 scripts/report.py RUN`"），一律按上面的参数表换成 `idea_review` 调用。
+- 环境：不用 uv、不用管 pypdf，插件调用脚本时已处理；PDF 抽文字优先用 pypdf，缺了会退回 `pdftotext`。`search` / `fetch` / `review` / `chair` 要联网。
 - `init` 不用传 `run`：工具会在会话工作目录下自动建 `idea-review-runs/<日期>-<几个英文词>/` 并返回 `runDir`。想让运行目录放在别处，也可以给 `run` 一个绝对路径（相对路径按会话工作目录解析）。
 - 侧边栏的 idea-review 面板会显示历史运行（idea、日期、语言、计数、有没有报告）。报告出好后可以让用户点面板里的"打开报告"，或把 `report` 返回的报告路径给用户用浏览器打开。
 
@@ -35,6 +36,7 @@
 - **语言**：跟用户说话的语言走，`lang: "zh"` 或 `lang: "en"`。笔记、proposal、报告都用这个语言写。
 - **数量**：默认候选 40 篇、精读 8 篇、proposal 3 份（原始 idea 1 份，加 2 个新方向）。用户想快一点可以调小 `refs`（精读篇数），想读得全一点调大。
 - **评审**：调用 `idea_review` 的 `reviewers` 动作，看本机有哪些别家的模型能用，告诉用户你打算调用哪几个。这会用掉对应工具的订阅额度或 API 费用，用户点头再调。
+- **最终评审**：流水线最后会请本机最强的一个模型跨 proposal 做最终评审，最好和写 proposal 的不是同一家。`init` 时可以用 `finalReviewer` 先记下来（比如 `"codex:gpt-5.5"`），不填就到时候按本机可用的挑。
 
 ## 流程
 
@@ -72,7 +74,7 @@ idea_review { "action": "fetch", "run": "<RUN>" }
 
 这一步最占篇幅，一篇全文几万字。能开子代理（DSH 的 subagent）就一篇交给一个子代理，并行读：给它 idea 原文、论文编号、全文路径、references/steps.md 第 5 节和 references/formats.md 里 notes 那一节，让它把 JSON 直接写到 `RUN/notes/<编号>.json`。不能开子代理就一篇一篇来，读完一篇立刻写文件，再读下一篇。全文长就分段读，方法和实验部分不能跳。
 
-**证据门槛**：读完调用 `next`。读到的全文少于 3 篇，或者全是 low，它会说停。停了就别往下找空白、写 proposal：两三篇弱论文撑不起十个空白，硬写只会生成看起来像样的空话。这时直接出报告（第 11 步），告诉用户报告顶部写的补救办法：手动下载没拿到全文的论文，按编号放进 `RUN/papers/`（比如 `P07.pdf`）后让你接着跑；或者换检索式开一次新的运行。只有用户明确说"就用现有的跑完"，才这样强制往下跑：
+**证据门槛**：读完调用 `next`。读到的全文少于 3 篇，或者全是 low，它会说停。停了就别往下找空白、写 proposal：两三篇弱论文撑不起十个空白，硬写只会生成看起来像样的空话。这时直接出报告（第 12 步），告诉用户报告顶部写的补救办法：手动下载没拿到全文的论文，按编号放进 `RUN/papers/`（比如 `P07.pdf`）后让你接着跑；或者换检索式开一次新的运行。只有用户明确说"就用现有的跑完"，才这样强制往下跑：
 
 ```
 idea_review { "action": "next", "run": "<RUN>", "force": true }
@@ -102,13 +104,27 @@ idea_review { "action": "review", "run": "<RUN>", "reviewers": ["codex", "gemini
 
 **10. 汇总**：每份 proposal 有两份及以上成功的评审时，写 `RUN/10_chair.json`。只有一份评审的跳过。见第 10 节。
 
-**11. 出报告**：
+**11. 最终评审**：
+
+```
+idea_review { "action": "chair", "run": "<RUN>" }
+```
+
+这一步不是再评一遍 proposal，而是用**本机能配置的最强模型**，把每份 proposal 收到的多家评审意见横向收拢成一份 `RUN/11_final_review.json`：每份 proposal 现在处在什么状态（clear / contested / needs_evidence / blocked）、评审之间哪里一致哪里矛盾、最致命的三个问题、最先该做哪个证伪实验。见第 11 节。
+
+- 最终评审的模型最好和写 proposal 的不是同一家，独立性才有意义。想固定用哪个：`init` 时加 `"finalReviewer": "codex:gpt-5.5"` 记进 `meta.json`，或者在 `chair` 时直接给 `"finalReviewer"` 覆盖。
+- `"timeoutSec"` 是单次最多等多少秒，默认 1800；这一步通常比单份评审更慢。
+- 本机一个别家的模型都没有时：用 `{ "action": "chair", "run": "<RUN>", "dump": true }` 只把材料写成 `RUN/final_review_prompt.md`，把它交给一个全新的子代理（或你自己）按文件里的要求写 `RUN/11_final_review.json`。信封里 `reviewer` 写 `"self"`、`same_family_as_writer` 写 `true`，并告诉用户这是同一家模型自审、参考价值打折。
+- 失败（模型超时、输出格式不对）：换一个模型再跑，或者用 `dump` 交子代理；`next` 会提示上一次的失败原因，别跳过它直接出报告。
+- 规矩和其他步骤一样：不评分、不下"值得做/不值得做"的结论、不替作者拍板；每条判断都要能追到是哪位评审说的、还是哪篇论文。
+
+**12. 出报告**：
 
 ```
 idea_review { "action": "report", "run": "<RUN>" }
 ```
 
-返回的 `reportUrl` 是面板里的报告页面，`output` 里有本机报告文件路径。把 `reportUrl` 给用户（或者让他点侧边栏 idea-review 面板里的"打开报告"），也可以把文件路径给他用浏览器打开。回复里简短说清：读了几篇全文、质量怎么分布、找到几个空白、几家评审都提到的问题是什么。不要替用户下"值得做"或"不值得做"的结论，拍板的是用户。
+返回的 `reportUrl` 是面板里的报告页面，`output` 里有本机报告文件路径。把 `reportUrl` 给用户（或者让他点侧边栏 idea-review 面板里的"打开报告"），也可以把文件路径给他用浏览器打开。回复里简短说清：读了几篇全文、质量怎么分布、找到几个空白、几家评审都提到的问题是什么、最终评审点出的最致命问题是什么。不要替用户下"值得做"或"不值得做"的结论，拍板的是用户。
 
 DSH 版没有"发布成网页应用"这一步（脚本里的 `--site` 没有暴露成工具参数）：报告是本机自包含的 HTML，不要往外发布。
 
@@ -118,7 +134,7 @@ DSH 版没有"发布成网页应用"这一步（脚本里的 `--site` 没有暴�
 - **判断依据正文**：摘要常常说得比正文大。引用全文时写页码，格式 `[p.6]`。
 - **分清来源**：哪些是论文写的，哪些是你推断的，要写明。
 - **只引用候选里的编号**（P07、L02 这种）。需要别的文献，写进 `needs_checking`，不要凭记忆补论文。
-- **不夸、不打分、不替用户拍板**。报告是帮用户发现盲点的。
+- **不夸、不打分、不下结论、不替用户拍板**。报告和最终评审都是帮用户发现盲点的。
 
 ## 运行目录里的文件
 
@@ -138,6 +154,8 @@ DSH 版没有"发布成网页应用"这一步（脚本里的 `--site` 没有暴�
 | `09_meta_reviews.json`、`usage.json` | review | 元评审、评审用量 |
 | `review_prompts/I1.md` | review（`dump`） | 给子代理代评的评审材料 |
 | `10_chair.json` | 你 | 评审意见汇总 |
+| `11_final_review.json` | chair（或用子代理代写） | 最终评审：跨 proposal 的共识、分歧、风险和最先做的实验 |
+| `final_review_prompt.md` | chair（`dump`） | 交给子代理写最终评审的材料 |
 | `report.html` | report | 报告（自包含 HTML） |
 
 ## 参考文件

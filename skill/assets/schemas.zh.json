@@ -958,5 +958,238 @@
   "title": "ChairSummary",
   "type": "object",
   "additionalProperties": false
+ },
+ "FinalReview": {
+  "title": "FinalReview",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "跨 proposal 的最终评审：把几位独立评审的意见综合成一份能拿去做决定的材料。不评分、不下最终结论、不替作者拍板。",
+  "properties": {
+   "verdict": {
+    "title": "Verdict",
+    "type": "string",
+    "description": "三五句话总评：这几份 proposal 现在各自处在什么状态、最该先动哪一个、为什么。不评分、不下\"值得做/不值得做\"的结论"
+   },
+   "per_idea": {
+    "title": "Per Idea",
+    "type": "array",
+    "items": {
+     "$ref": "#/$defs/IdeaStanding"
+    },
+    "description": "每份 proposal 一条"
+   },
+   "consensus": {
+    "title": "Consensus",
+    "type": "array",
+    "items": {
+     "$ref": "#/$defs/FinalConsensusIssue"
+    },
+    "description": "两位及以上评审都提到的问题，写清是谁提的"
+   },
+   "disagreements": {
+    "title": "Disagreements",
+    "type": "array",
+    "items": {
+     "$ref": "#/$defs/FinalDisagreement"
+    },
+    "description": "评审之间真正互相矛盾的地方，不要和稀泥"
+   },
+   "top_risks": {
+    "title": "Top Risks",
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "description": "最致命的 3 个问题，按严重程度排序，每条写清依据"
+   },
+   "cheapest_experiments": {
+    "title": "Cheapest Experiments",
+    "type": "array",
+    "items": {
+     "$ref": "#/$defs/FinalExperiment"
+    },
+    "description": "最便宜的先做的证伪实验，2 到 4 条，按做起来的成本排序"
+   },
+   "must_verify": {
+    "title": "Must Verify",
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "description": "作者必须亲自点开论文核实的说法，带上论文编号"
+   },
+   "next_steps": {
+    "title": "Next Steps",
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "description": "建议的下一步 2 到 4 条，按先后顺序"
+   },
+   "uncertainties": {
+    "title": "Uncertainties",
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "description": "你自己拿不准、或者现有材料不足以下判断的地方"
+   }
+  },
+  "required": [
+   "verdict",
+   "per_idea",
+   "consensus",
+   "disagreements",
+   "top_risks",
+   "cheapest_experiments",
+   "must_verify",
+   "next_steps",
+   "uncertainties"
+  ],
+  "$defs": {
+   "IdeaStanding": {
+    "title": "IdeaStanding",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "proposal_id": {
+      "title": "Proposal Id",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string",
+      "enum": [
+       "clear",
+       "contested",
+       "needs_evidence",
+       "blocked"
+      ],
+      "description": "这个方向现在的状态：clear 还没看到硬伤 / contested 评审之间分歧大 / needs_evidence 关键结论缺证据 / blocked 有评审指出的致命问题"
+     },
+     "summary": {
+      "title": "Summary",
+      "type": "string",
+      "description": "一两句话：综合几位评审之后这个方向的状态"
+     },
+     "main_risks": {
+      "title": "Main Risks",
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "最多 3 条，最致命的放前面"
+     },
+     "supporting_papers": {
+      "title": "Supporting Papers",
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "支撑这个判断的论文编号，比如 P03、P07"
+     }
+    },
+    "required": [
+     "proposal_id",
+     "status",
+     "summary",
+     "main_risks",
+     "supporting_papers"
+    ]
+   },
+   "FinalConsensusIssue": {
+    "title": "FinalConsensusIssue",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "issue": {
+      "title": "Issue",
+      "type": "string"
+     },
+     "raised_by": {
+      "title": "Raised By",
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "提出这个问题的评审名字"
+     },
+     "severity": {
+      "title": "Severity",
+      "type": "string",
+      "enum": [
+       "fatal",
+       "serious",
+       "minor"
+      ]
+     }
+    },
+    "required": [
+     "issue",
+     "raised_by",
+     "severity"
+    ]
+   },
+   "FinalDisagreement": {
+    "title": "FinalDisagreement",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "topic": {
+      "title": "Topic",
+      "type": "string"
+     },
+     "positions": {
+      "title": "Positions",
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "每条写清是哪位评审、怎么看的"
+     },
+     "how_to_settle": {
+      "title": "How To Settle",
+      "type": "string",
+      "description": "用哪个实验或者查哪篇论文能定下来"
+     }
+    },
+    "required": [
+     "topic",
+     "positions",
+     "how_to_settle"
+    ]
+   },
+   "FinalExperiment": {
+    "title": "FinalExperiment",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "experiment": {
+      "title": "Experiment",
+      "type": "string"
+     },
+     "for_idea": {
+      "title": "For Idea",
+      "type": "string",
+      "description": "验证哪份 proposal，写 I1 / I2"
+     },
+     "kill_if": {
+      "title": "Kill If",
+      "type": "string",
+      "description": "出现什么结果就该放弃"
+     },
+     "est_days": {
+      "title": "Est Days",
+      "type": "string"
+     }
+    },
+    "required": [
+     "experiment",
+     "for_idea",
+     "kill_if",
+     "est_days"
+    ]
+   }
+  }
  }
 }

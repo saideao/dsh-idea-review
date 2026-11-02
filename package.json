@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-idea-review",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Idea Review for DeepSeek Harness: literature survey + multi-model review for a research idea.",
   "type": "module",
@@ -25,7 +25,9 @@
     "test/*"
   ],
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "platform": "web",
       "immediately": true,

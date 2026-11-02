@@ -36,7 +36,7 @@ const ctx = {
 }
 
 const mod = await import(`${BUNDLE}/index.js`)
-mod.apply(ctx, { stateDir: path.join(work, 'state') })
+mod.apply(ctx, { stateDir: path.join(work, 'state'), finalReviewer: 'claude:opus-4.5' })
 
 let failures = 0
 const check = (label, condition, detail = '') => {
@@ -50,6 +50,9 @@ check('skill has a description', typeof captured.skill?.description === 'string'
 check('skill resourceBase points at the shipped skill dir', captured.skill?.resourceBase?.kind === 'directory' && fs.existsSync(captured.skill.resourceBase.path))
 check('tool registered', captured.tool?.name === 'idea_review')
 check('tool parameters are an object schema with required action', captured.tool?.parameters?.type === 'object' && captured.tool.parameters.required.includes('action'))
+const actionEnum = captured.tool?.parameters?.properties?.action?.enum ?? []
+check('tool exposes the chair action', actionEnum.includes('chair'), actionEnum.join(','))
+check('tool takes a finalReviewer parameter', Boolean(captured.tool?.parameters?.properties?.finalReviewer))
 check('tool output render', typeof captured.tool?.output?.render === 'function')
 check('three routes registered', captured.routes.length === 3, String(captured.routes.length))
 
@@ -58,6 +61,18 @@ const init = await captured.tool.execute({ action: 'init', idea: '让大模型�
 check('init ok', init.ok === true, init.message)
 check('init reports an existing runDir', typeof init.runDir === 'string' && fs.existsSync(init.runDir))
 check('init returns script output', typeof init.output === 'string' && init.output.length > 0)
+
+// The final-review model comes from the plugin config unless the call overrides it.
+const initMeta = JSON.parse(fs.readFileSync(path.join(init.runDir, 'meta.json'), 'utf8'))
+check('init records the configured final reviewer', initMeta.final_review?.reviewer === 'claude:opus-4.5', JSON.stringify(initMeta.final_review))
+const override = await captured.tool.execute({ action: 'init', idea: '另一个 idea', run: path.join(work, 'override-run'), finalReviewer: 'codex:gpt-5.5' }, exec)
+const overrideMeta = JSON.parse(fs.readFileSync(path.join(override.runDir, 'meta.json'), 'utf8'))
+check('init parameter overrides the config', overrideMeta.final_review?.reviewer === 'codex:gpt-5.5', JSON.stringify(overrideMeta.final_review))
+
+const chairTooEarly = await captured.tool.execute({ action: 'chair', run: init.runDir }, exec)
+check('chair before proposals fails cleanly', chairTooEarly.ok === false && chairTooEarly.message.includes('proposal'), chairTooEarly.message)
+const chairNoRun = await captured.tool.execute({ action: 'chair' }, exec)
+check('chair without run fails cleanly', chairNoRun.ok === false && chairNoRun.message.includes('run'), chairNoRun.message)
 
 const next = await captured.tool.execute({ action: 'next', run: init.runDir }, exec)
 check('next ok', next.ok === true, next.message)
@@ -70,7 +85,7 @@ check('report returns an absolute url', typeof report.reportUrl === 'string' && 
 const indexFile = path.join(work, 'state', 'runs.json')
 check('run index written', fs.existsSync(indexFile))
 const index = JSON.parse(fs.readFileSync(indexFile, 'utf8'))
-check('index holds one run', index.runs.length === 1, JSON.stringify(index.runs.length))
+check('index holds both runs', index.runs.length === 2, JSON.stringify(index.runs.map(r => r.dir)))
 check('index summary has counts', typeof index.runs[0].counts?.candidates === 'number')
 check('index records the last action', index.runs[0].lastAction === 'report', index.runs[0].lastAction)
 
@@ -93,8 +108,9 @@ const reportRoute = captured.routes.find(r => r.kind === 'prefix' && r.path === 
 const list = await call(listRoute, '/idea-review/api/runs')
 check('list route 200', list.status === 200, `${list.status} ${list.body}`)
 const listJson = JSON.parse(list.body)
-check('list route returns the run', listJson.runs?.length === 1 && listJson.runs[0].idea.includes('大模型'))
-const key = listJson.runs[0].key
+const mainRun = listJson.runs?.find(run => run.dir === path.resolve(init.runDir))
+check('list route returns the run', Boolean(mainRun) && mainRun.idea.includes('大模型'), JSON.stringify(listJson.runs?.map(r => r.idea)))
+const key = mainRun?.key
 
 const detail = await call(detailRoute, `/idea-review/api/runs/${encodeURIComponent(key)}`)
 check('detail route 200', detail.status === 200, `${detail.status}`)

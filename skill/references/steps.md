@@ -13,6 +13,7 @@
 8. proposal
 9. 元评审（含"没有别家模型时"）
 10. 汇总评审意见
+11. 最终评审（跨 proposal）
 
 ## 1. 拆检索词 → 01_plan.json
 
@@ -123,3 +124,26 @@ export IDEA_REVIEW_API_MODEL=模型名
 - 只有一位提到、或者说法相反的，放进 `disagreements`，写清各自的看法。
 - `must_verify` 列出作者必须亲自点开论文核实的说法，尤其是"某篇论文已经做过"这类判断。
 - 不下结论、不打分，不说"建议做"或"建议放弃"。
+
+## 11. 最终评审（跨 proposal）
+
+前面的元评审是一份 proposal 一份；这一步站在更高一层，把几份 proposal 和它们收到的所有评审放到一起看。`next` 在 `10_chair.json` 完成后会让你跑这一步；它跑的是 `idea_review` 的 `chair` 动作（脚本里是 `ir.py chair RUN`），输出 `11_final_review.json`。
+
+**什么时候跑**：`next` 说"跑最终评审"时。挑本机最强的模型，最好和写 proposal 的不是同一家——评审自己写的东西，独立性会打折。`init` 时可以用 `--final-reviewer codex:gpt-5.5`（DSH 工具里是 `finalReviewer`）记下来，`chair` 时也可以用 `--reviewer` 临时覆盖；单次最多等 1800 秒（`--timeout`）。
+
+**它给模型看什么**：用户的 idea、`08_proposals.json` 里每份 proposal、`09_meta_reviews.json` 里每份成功的评审、`10_chair.json` 里之前的汇总（只作参考）、`06_landscape.json` 的版图和空白、`05_reviews.json` 里读过的论文。
+
+**模型被要求写什么**（完整格式见 formats.md 第 11 节，schema 是 `FinalReview`）：
+
+- `verdict`：三五句话总评，说清每份 proposal 现在什么状态、最该先动哪个；
+- `per_idea`：每份 proposal 一条，`status` 只能是 `clear` / `contested` / `needs_evidence` / `blocked`，`main_risks` 最多 3 条，`supporting_papers` 写论文编号；
+- `consensus`：两位及以上评审都提到的问题，写清是谁提的，严重程度 `fatal` / `serious` / `minor`；
+- `disagreements`：评审之间真正互相矛盾的地方，各自立场，以及用什么实验或查哪篇论文能定；
+- `top_risks`：最致命的 3 条；`cheapest_experiments`：2 到 4 条最便宜的证伪实验，写清验证哪份 proposal、什么结果该放弃、大概几天；
+- `must_verify`、`next_steps`、`uncertainties`。
+
+重点是**不评分、不下"值得做/不值得做"的结论、不替作者拍板**；每条判断要能追到是哪位评审说的、还是哪篇论文（写编号，必要时写页码）；不要照抄已有评审的原话，要跨 proposal 横向比较。
+
+**怎么跟用户说**：用一小段话，说清每份 proposal 现在的状态、几家评审都提到的问题、真正有分歧的地方、最该先做的那一个实验。不要替用户拍板。报告里也会带上最终评审的要点。
+
+**失败怎么办**：模型超时或输出格式不对时，换一个模型再跑（`--reviewer` / `finalReviewer`），或者用 `chair RUN --dump` 只写 `final_review_prompt.md`，把它交给一个全新的子代理按文件里的要求写 `11_final_review.json`。走子代理时信封字段 `reviewer` 写 `"self"`、`family` 写自己公司、`same_family_as_writer` 写 `true`，并在回复里告诉用户这是同一家模型自审、参考价值打折。`next` 会提示上一次的失败原因；有通过 schema 检查的 `11_final_review.json` 之后，`next` 才会让你出报告。

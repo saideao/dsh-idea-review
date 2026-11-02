@@ -135,6 +135,22 @@ TX = {
         "excerpt": "{line}\n<<<全文节选开始\n{text}\n全文节选结束>>>",
         "no_excerpts": "（proposal 引用的论文没有可用的全文）",
         "omitted": "\n\n[……中间省略……]\n\n",
+        "final_proposals_h": "几份 proposal：",
+        "final_reviews_h": "独立元评审的原始意见（{n} 份，来自 {m} 位评审）：",
+        "final_review_block": ("### {pid} {title}｜评审 {reviewer}（{family}）\n"
+                               "  撞车：{overlap}\n  死因：{deaths}\n  可行性卡点：{bottleneck}\n"
+                               "  最便宜的证伪实验：{experiment}（出现「{kill}」就该放弃）\n  要作者回答：{questions}"),
+        "final_chair_h": "之前的意见汇总（只作参考，不要照抄）：",
+        "final_landscape_h": "版图和空白：",
+        "final_gap_line": "  {gid}. {title}",
+        "final_papers_h": "精读过的论文：",
+        "final_paper_line": "  {line}；质量档位 {tier}",
+        "final_none": "（没有）",
+        "final_dump_hint": ("把这份材料交给一个新的子代理（或者你自己）写 {run}/11_final_review.json："
+                            "reviewer 写 \"self\"，family 写 \"{family}\"，same_family_as_writer 写 true，"
+                            "review 部分是最终评审本体，格式见 references/formats.md 第 11 节。"),
+        "final_running": "最终评审：{reviewer} 正在综合 {proposals} 份 proposal 和 {reviews} 份元评审……",
+        "final_done": "最终评审完成：{reviewer}（{family}），用了 {seconds:.0f} 秒。下一步：运行 next。",
         "json_instruction": "只输出一个 JSON 对象，不要输出其他文字。JSON 必须符合下面的 JSON Schema（{name}）：",
         "retry": "上一次的输出没有通过格式校验：{error}\n请重新输出完整的 JSON，只输出 JSON。",
     },
@@ -158,6 +174,22 @@ TX = {
         "excerpt": "{line}\n<<<FULL-TEXT EXCERPT START\n{text}\nFULL-TEXT EXCERPT END>>>",
         "no_excerpts": "(none of the papers cited by the proposal has a usable full text)",
         "omitted": "\n\n[... middle omitted ...]\n\n",
+        "final_proposals_h": "The proposals:",
+        "final_reviews_h": "Raw meta reviews ({n} in total, from {m} reviewers):",
+        "final_review_block": ("### {pid} {title} | reviewer {reviewer} ({family})\n"
+                               "  Overlap: {overlap}\n  Causes of death: {deaths}\n  Feasibility bottleneck: {bottleneck}\n"
+                               "  Cheapest falsification: {experiment} (give up if \"{kill}\")\n  Questions for the author: {questions}"),
+        "final_chair_h": "Earlier chair summary (reference only, do not copy):",
+        "final_landscape_h": "Landscape and gaps:",
+        "final_gap_line": "  {gid}. {title}",
+        "final_papers_h": "Papers read:",
+        "final_paper_line": "  {line}; quality tier {tier}",
+        "final_none": "(none)",
+        "final_dump_hint": ("Hand this material to a fresh subagent (or write it yourself) as {run}/11_final_review.json: "
+                            "reviewer \"self\", family \"{family}\", same_family_as_writer true, and the final review itself "
+                            "under review. Format: references/formats.md section 11."),
+        "final_running": "Final review: {reviewer} is synthesising {proposals} proposals across {reviews} meta reviews...",
+        "final_done": "Final review done: {reviewer} ({family}) in {seconds:.0f}s. Next: run next.",
         "json_instruction": "Output a single JSON object and nothing else. The JSON must follow this JSON Schema ({name}):",
         "retry": "The previous output failed validation: {error}\nOutput the complete JSON again, and only the JSON.",
     },
@@ -638,6 +670,9 @@ def cmd_init(args) -> None:
                     meta[group][key] = value
         if args.writer:
             meta["writer"] = {"family": args.writer, "model": args.writer_model or meta["writer"].get("model", "")}
+        if getattr(args, "final_reviewer", None):
+            meta.setdefault("final_review", {})["reviewer"] = args.final_reviewer.strip()
+            changed.append(f"最终评审模型 → {args.final_reviewer.strip()}")
         run.save("meta", meta)
         print(f"{run.dir} 已经建过了。" + (f"改了：{'，'.join(changed)}。" if changed else "没有改动。") + "运行 next 看下一步。")
         return
@@ -655,14 +690,18 @@ def cmd_init(args) -> None:
         "review": {k: v if v is not None else DEFAULTS[k] for k, v in review.items()},
         "year_from": args.year_from,
         "writer": {"family": args.writer, "model": args.writer_model or ""},
+        # 最终评审用哪个模型；空字符串表示到时候按本机可用的最优选，或者交给子代理
+        "final_review": {"reviewer": (getattr(args, "final_reviewer", None) or "").strip()},
         "expanded": 0,
         "force": False,
         "tool": "skill",
     }
     run.save("meta", meta)
     s, r = meta["search"], meta["review"]
+    finalist = meta["final_review"]["reviewer"] or "未指定（到时候挑本机最强的，或者用 --dump 交子代理）"
     print(f"建好了：{run.dir}\n数量：候选最多 {s['max_candidates']} 篇，精读 {s['download']} 篇，至少 {r['min_fulltexts']} 篇全文"
-          f"才往下找空白，proposal 最多 {r['ideas']} 份。\n下一步：拆检索词，写 {run.path('01_plan')}（见 references/steps.md 第 1 节）。")
+          f"才往下找空白，proposal 最多 {r['ideas']} 份。\n最终评审模型：{finalist}"
+          f"\n下一步：拆检索词，写 {run.path('01_plan')}（见 references/steps.md 第 1 节）。")
 
 
 def write_screen_todo(run: Run, papers: list[dict], screened: set[str], lang: str) -> list[dict]:
@@ -990,6 +1029,22 @@ def cmd_next(args) -> None:
             return report_errors(f"10_chair.json 里 {pid} 的 summary", errs)
     if need_chair:
         return step(f"汇总 {'、'.join(need_chair)} 的评审意见，写进 {run.path('10_chair')}（见 references/steps.md 第 10 节）。")
+
+    final = run.load("11_final_review")
+    if not (final or {}).get("review"):
+        configured = ((meta.get("final_review") or {}).get("reviewer") or "").strip()
+        if final and final.get("error"):
+            print(f"上一次最终评审失败了：{final['error']}")
+        if configured:
+            how = f"ir.py chair {run.dir}（配置的最终评审模型：{configured}）"
+        elif pick := pick_final_reviewer(meta["writer"]["family"]):
+            how = f"ir.py chair {run.dir} --reviewer {pick}:<最强模型名>（本机能用：{' / '.join(REVIEWERS)}；挑最强的那个）"
+        else:
+            how = f"ir.py chair {run.dir} --dump，再把材料交给子代理写 11_final_review.json"
+        return step(f"跑最终评审：用最强的模型把几位评审的意见综合成一份最终意见。{how}\n"
+                    "  这一步不是再评一遍，是跨 proposal 收拢共识、点出分歧和最先该做的实验（见 references/steps.md 第 11 节）。")
+    if errs := check(final["review"], "FinalReview"):
+        return report_errors("11_final_review.json", errs)
     step(f"运行 report.py {run.dir} 出报告，把报告路径和要点告诉用户。")
 
 
@@ -1297,6 +1352,139 @@ def cmd_review(args) -> None:
     print(f"完成：成功 {ok} 份，失败 {len(saved) - ok} 份。下一步：运行 next。")
 
 
+# ---------- 最终评审：用最强的模型把几位评审的意见综合成一份 ----------
+
+# 没配置时按这个顺序挑：claude、codex、gemini、codebuddy 的旗舰，最后才用 API
+FINAL_PREFERENCE = ("claude", "codex", "gemini", "codebuddy", "api")
+
+
+def pick_final_reviewer(writer_family: str | None) -> str:
+    """挑一个能做最终评审的模型：本机能用的，和写 proposal 不是一家的优先。"""
+    found = {name: same for name, _family, same in available_reviewers(writer_family)}
+    for want_same in (False, True):
+        for name in FINAL_PREFERENCE:
+            if name in found and found[name] == want_same:
+                return name
+    return ""
+
+
+def final_values(run: Run, meta: dict, proposals: list[dict], metas: list[dict], t: dict) -> dict:
+    """拼最终评审的材料：proposal、各家原始意见、之前的汇总、版图、读过的论文。"""
+    papers = {p["paper_id"]: p for p in run.load("02_candidates", [])}
+    reads = {r["paper_id"]: r["review"] for r in run.load("05_reviews", []) if r.get("review")}
+    join, none = t["join"].join, t["none"]
+
+    blocks = []
+    for rec in proposals:
+        pid, title = rec["proposal_id"], rec["proposal"]["title"]
+        for m in metas:
+            if m["proposal_id"] != pid:
+                continue
+            rev = m["review"]
+            overlay = join(f"{o['paper_id']}：{o['overlap']}" for o in rev["overlap"][:3]) or rev.get("no_overlap_note") or none
+            deaths = join(f"{d['reason']}（{d['basis']}；{d['source']}）" for d in rev["causes_of_death"][:3]) or none
+            fals = rev["cheapest_falsification"]
+            blocks.append(t["final_review_block"].format(
+                pid=pid, title=title, reviewer=m.get("reviewer", "?"), family=m.get("family") or "?",
+                overlap=overlay, deaths=deaths, bottleneck=rev["feasibility"]["bottleneck"],
+                experiment=f"{fals['experiment']}（对比 {fals['compare_against']}，看 {fals['metric']}）",
+                kill=fals["kill_if"], questions=join(rev["questions_for_author"][:3]) or none))
+
+    chairs = run.load("10_chair", [])
+    chair_text = "\n\n".join(f"### {c['proposal_id']}\n{json.dumps(c['summary'], ensure_ascii=False, indent=1)}"
+                             for c in chairs if c.get("summary")) or none
+
+    landscape = run.load("06_landscape") or {}
+    gaps = landscape.get("gaps") or []
+    landscape_text = ((landscape.get("summary") or "") + "\n" + "\n".join(
+        t["final_gap_line"].format(gid=f"G{i}", title=g["title"]) for i, g in enumerate(gaps, 1))).strip() or none
+
+    tier_order = {"high": 0, "medium": 1, "low": 2}
+    ordered = sorted(reads.items(), key=lambda kv: (tier_order.get(kv[1]["quality"]["tier"], 3), kv[0]))
+    paper_lines = [t["final_paper_line"].format(line=paper_line(papers[pid], t), tier=rev["quality"]["tier"])
+                   for pid, rev in ordered if pid in papers]
+
+    return {
+        "language": meta["language"],
+        "run": str(run.dir),
+        "family": meta["writer"]["family"],
+        "idea": meta["idea"],
+        "proposals": "\n\n".join(proposal_text(r["proposal_id"], r["proposal"], t) for r in proposals),
+        "reviews": "\n\n".join(blocks) or none,
+        "chair": chair_text,
+        "landscape": landscape_text,
+        "papers": "\n".join(paper_lines) or none,
+    }
+
+
+def cmd_chair(args) -> None:
+    """最终评审：不评判单份 proposal，而是跨 proposal 收拢几位评审的意见。"""
+    run = Run(args.run)
+    meta = run.meta()
+    lang, t = meta["lang"], TX[meta["lang"]]
+    proposals = [r for r in run.load("08_proposals", []) if r.get("proposal")]
+    if not proposals:
+        raise Stop("还没有写好的 proposal（08_proposals.json）。先运行 next 看进度。")
+    metas = [m for m in run.load("09_meta_reviews", []) if m.get("review")]
+    if not metas:
+        raise Stop("还没有成功的元评审（09_meta_reviews.json）。先运行 review，或者用 review --dump 交给子代理代评。")
+    schema = schemas(lang)["FinalReview"]
+    system_raw, user_raw = (SKILL_DIR / "assets" / f"final_review.{lang}.md").read_text(encoding="utf-8").split("---USER---", 1)
+    values = final_values(run, meta, proposals, metas, t)
+    system = system_raw.strip()
+    user = Template(user_raw.strip()).safe_substitute(values)
+
+    if args.dump:
+        out = run.dir / "final_review_prompt.md"
+        out.write_text(f"{system}\n\n{user}\n\n---\n{t['json_instruction'].format(name='FinalReview')}\n"
+                       f"{json.dumps(schema, ensure_ascii=False)}\n", encoding="utf-8")
+        print(f"  {out}")
+        print(t["final_dump_hint"].format(run=run.dir, family=meta["writer"]["family"]))
+        return
+
+    writer = meta["writer"]["family"]
+    spec = (args.reviewer or (meta.get("final_review") or {}).get("reviewer") or "").strip()
+    if not spec:
+        spec = pick_final_reviewer(writer)
+    if not spec:
+        raise Stop("没有可用的最终评审模型。用 --reviewer 指定一个（比如 --reviewer codex:gpt-5.5），或者加 --dump 把材料交给子代理。")
+    rv = Reviewer(spec, args.timeout)
+    if rv.family == writer:
+        print(f"注意：{rv.label} 和写 proposal 的是同一家的模型（{writer}），最终评审的独立性打折，报告里会标明。", flush=True)
+    print(t["final_running"].format(reviewer=rv.label, proposals=len(proposals), reviews=len(metas)), flush=True)
+
+    start = time.time()
+    record = {
+        "reviewer": rv.name, "label": rv.label, "model": rv.model, "family": rv.family,
+        "same_family_as_writer": rv.family == writer,
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "inputs": {"proposals": len(proposals), "meta_reviews": len(metas), "chairs": len(run.load("10_chair", []))},
+        "review": None, "error": "",
+    }
+    try:
+        text = rv.complete(system, user, schema, lang)
+        try:
+            review = extract_json(text)
+            errs = check(review, "FinalReview")
+        except ValueError as e:
+            review, errs = None, [str(e)]
+        if errs:  # 格式不对，带上错误再要一次
+            text = rv.complete(system, f"{user}\n\n{t['retry'].format(error='；'.join(errs))}", schema, lang)
+            review = extract_json(text)
+            if errs := check(review, "FinalReview"):
+                raise RuntimeError("输出格式不对：" + "；".join(errs[:3]))
+        record.update(review=review, model=rv.used_model or rv.model)
+    except (RuntimeError, ValueError, OSError) as e:
+        record["error"] = str(e)[:500]
+    run.save("11_final_review", record)
+    usage = run.load("usage", {})
+    usage[rv.name] = {"model": rv.used_model or rv.model or rv.name, **rv.usage}
+    run.save("usage", usage)
+    if record["error"]:
+        raise Stop(f"最终评审失败：{record['error']}\n可以换一个模型（--reviewer），或者用 --dump 把材料交给子代理。")
+    print(t["final_done"].format(reviewer=rv.label, family=rv.family, seconds=time.time() - start))
+
+
 def cmd_reviewers(args) -> None:
     found = available_reviewers(args.writer)
     if not found:
@@ -1321,6 +1509,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--min-fulltexts", type=int, help=f"至少读到几篇全文才往下找空白，默认 {DEFAULTS['min_fulltexts']}")
     p.add_argument("--per-query", type=int, help=f"每条检索式、每个来源取的篇数，默认 {DEFAULTS['per_query']}")
     p.add_argument("--year-from", type=int, help="只要这一年及以后的论文")
+    p.add_argument("--final-reviewer", help="最终评审用哪个模型，比如 codex:gpt-5.5；不填就到时候挑本机最强的，或者用 --dump 交子代理")
     p = sub.add_parser("search", help="检索、合并去重、取候选")
     p.add_argument("run")
     p.add_argument("--query", action="append", help="直接给检索式，可以写多次；不给就用 01_plan.json 里的")
@@ -1338,6 +1527,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--reviewer", action="append", help="claude / codex / gemini / api，可以写成 codex:模型名；可以写多次")
     p.add_argument("--timeout", type=int, default=900, help="每次调用最多等多少秒，默认 900")
     p.add_argument("--dump", action="store_true", help="不调用模型，只把评审材料写进 review_prompts/，给子代理代评用")
+    p = sub.add_parser("chair", help="最终评审：用最强的模型把几位评审的意见综合成一份")
+    p.add_argument("run")
+    p.add_argument("--reviewer", help="最终评审用哪个模型，比如 codex:gpt-5.5；不给就用 init 时记下的，再不然挑本机最强的")
+    p.add_argument("--timeout", type=int, default=1800, help="最多等多少秒，默认 1800")
+    p.add_argument("--dump", action="store_true", help="不调用模型，只把材料写进 final_review_prompt.md，给子代理写")
     args = ap.parse_args(argv)
     for key in ("candidates", "refs", "ideas", "min_fulltexts", "per_query"):
         value = getattr(args, key, None)
@@ -1346,7 +1540,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
     try:
         {"init": cmd_init, "search": cmd_search, "fetch": cmd_fetch, "next": cmd_next,
-         "reviewers": cmd_reviewers, "review": cmd_review}[args.cmd](args)
+         "reviewers": cmd_reviewers, "review": cmd_review, "chair": cmd_chair}[args.cmd](args)
     except Stop as e:
         print(e, file=sys.stderr)
         return 1

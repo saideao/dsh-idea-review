@@ -13,16 +13,17 @@
 
 | 贡献 | 说明 |
 | --- | --- |
-| **技能 `idea-review`** | 完整的工作流程说明（拆检索词、初筛、精读评质量、找空白、写 proposal、元评审、汇总、出报告），agent 识别到相关请求就按它执行 |
-| **工具 `idea_review`** | 把固定的、容易做错的步骤交给脚本：建运行目录、检索、下载全文、查进度、调别家模型做元评审、渲染报告 |
-| **Web 面板** | 侧边栏"想法评审"图标：列出历次运行、看读了几篇/找到几个空白/几份评审，一键打开 HTML 报告 |
+| **技能 `idea-review`** | 完整的工作流程说明（拆检索词、初筛、精读评质量、找空白、写 proposal、元评审、最终评审、出报告），agent 识别到相关请求就按它执行 |
+| **工具 `idea_review`** | 把固定的、容易做错的步骤交给脚本：建运行目录、检索、下载全文、查进度、调别家模型做元评审、让最强的模型写最终评审、渲染报告 |
+| **Web 面板** | 侧边栏"想法评审"图标：列出历次运行、看读了几篇/找到几个空白/几份评审/最终评审的结论，一键打开 HTML 报告 |
 
 分工和原项目一致：**要动脑子的部分由 agent 自己做**（用它正在用的模型，不额外花 API 钱），
 检索、下载、格式检查、"证据不够就停"、调别家模型这些固定动作由插件里的脚本完成。
 
 > 所以它是"多模型"但不是"每个环节都能换模型"：写 proposal 的是 DSH 当前会话的模型，
 > 挑毛病的是**别家公司的模型**（本机 `claude` / `codex` / `gemini` / `codebuddy` 命令行，
-> 或 OpenAI 兼容接口）。跨厂商评审这条核心设计保留。
+> 或 OpenAI 兼容接口），最后再由其中**最强的那个**综合几位评审写一份最终评审。
+> 跨厂商评审这条核心设计保留，最终评审用哪个模型可以自己配（见下面的 `finalReviewer`）。
 
 ## 安装
 
@@ -132,7 +133,8 @@ rm -rf ~/dsh-plugins/dsh-idea-review      # 插件本体（可选）
 | --- | --- | --- |
 | `python` | `"python3"` | 运行脚本的解释器；可以写 `"uv run"` 或绝对路径 |
 | `stateDir` | `$DSH_HOME/idea-review` | 运行索引（面板数据）放哪里 |
-| `stepTimeoutSec` | `1500` | 单次脚本调用的超时；元评审慢，可以调大 |
+| `stepTimeoutSec` | `1900` | 单次脚本调用的超时；要大于最终评审的超时（默认 1800 秒） |
+| `finalReviewer` | `""` | 写最终评审的模型，写成 `名字:模型名`，比如 `codex:gpt-5.5`；空着就到时候挑本机最强的 |
 
 ```yaml
 - id: idea-review
@@ -140,6 +142,7 @@ rm -rf ~/dsh-plugins/dsh-idea-review      # 插件本体（可选）
   config:
     python: 'uv run'
     stepTimeoutSec: 2400
+    finalReviewer: 'codex:gpt-5.5'   # 最强的那个模型；也可以写成 claude:opus-4.5、api:deepseek-reasoner
 ```
 
 改完**重启 DSH Desktop** 才生效。
@@ -147,19 +150,46 @@ rm -rf ~/dsh-plugins/dsh-idea-review      # 插件本体（可选）
 插件不导出 `Config` schema（bundle 装在 profile 里，解析不到 dsh 安装目录下的 `schemastery`），
 所以 `config` 不做校验：字段写错会退回默认值。
 
+## 最终评审
+
+几位评审各自写完 meta review 之后，还差一步：**把这些散着的意见综合成一份能拿去做决定的东西**。
+`idea_review` 的 `chair` 动作就是这一步，用**一个最强模型**重读所有 proposal 和所有评审意见，输出：
+
+| 块 | 内容 |
+| --- | --- |
+| 总评 | 三五句话：几份 proposal 各处在什么状态、最该先动哪个 |
+| 逐份判断 | 每份 proposal 一条，状态只有 `clear` / `contested` / `needs_evidence` / `blocked`，加主要风险 |
+| 共识 | 两位及以上评审都提到的问题，写清是谁提的、严重程度（`fatal` / `serious` / `minor`） |
+| 分歧 | 评审之间真正矛盾的地方，以及**用什么实验或查哪篇论文能定** |
+| 最致命的问题 | 按严重程度排 3 条 |
+| 最便宜的实验 | 2–4 个先做的证伪实验，写清验证哪份 proposal、什么结果就该放弃、大概几天 |
+| 必须核实 | 你必须亲自点开论文核实的说法，带论文编号 |
+| 下一步 | 按先后顺序 2–4 条 |
+| 不确定 | 模型自己拿不准、或者材料不够的地方 |
+
+规矩和整份报告一致：**不评分、不下"值得做/不值得做"的结论**，也不替你做决定；它的价值是把材料摆得比单份评审更清楚。
+如果写最终评审的模型和写 proposal 的是同一家，报告里会明确标出来（独立性打折）。
+
+谁来做由 `finalReviewer` 决定：
+
+- 配了就用配的那个（推荐配你手上最强的、而且尽量不是写 proposal 那家）；
+- 没配就在 `chair` 时挑本机可用的最强的那个；
+- 一个别家模型都没有时，`chair` 加 `dump: true` 只导出材料（`final_review_prompt.md`），交给子代理写，报告里会标成同一家的模型。
+
 ## 运行目录长什么样
 
 默认建在会话当前目录下：`idea-review-runs/<日期>-<几个英文词>/`，里面有
 `meta.json`、`01_plan.json`、`02_candidates.json`、`03_screen.json`、`04_fulltext.json`、
-`notes/`、`papers/`、`text/`、`05_reviews.json` … `10_chair.json`、`report.html`。
-格式和原项目的命令行版完全一样，两个版本可以互相接着跑。
+`notes/`、`papers/`、`text/`、`05_reviews.json` … `10_chair.json`、`11_final_review.json`、`report.html`。
+格式和原项目的命令行版兼容，两个版本可以互相接着跑；`11_final_review.json` 是本插件新增的一步。
 
 ## 面板
 
 侧边栏底部的"想法评审"图标打开主面板：
 
-- 列出所有运行：idea 原文、日期、语言、候选/精读/空白/proposal/元评审数量、质量分布；
-- 选中一个可以看到明细、直接打开 HTML 报告、复制运行目录路径；
+- 列出所有运行：idea 原文、日期、语言、候选/精读/空白/proposal/元评审数量、质量分布，
+  有最终评审的还带一个标记；
+- 选中一个可以看到明细（最上面是最终评审的结论，以及它由哪个模型综合）、直接打开 HTML 报告、复制运行目录路径；
 - 还没有运行时给出"怎么开始"的提示。
 
 面板只服务索引里登记的运行目录（按 key 查表），不会把任意路径当文件读。
@@ -205,8 +235,17 @@ python3 test/smoke.py      # 脚本/参考资料与原项目逐字节一致，zh
   这时把 `timeoutSec` 调小、分批评，或改用 `dump` 交给子代理。
 - 走 API 评审时，`IDEA_REVIEW_API_BASE` / `IDEA_REVIEW_API_KEY` / `IDEA_REVIEW_API_MODEL`
   要在**启动 DSH 之前**设好（插件进程继承 DSH 的环境变量，agent 里 export 传不进去）。
+- **最终评审**是一次调用：模型要把所有 proposal 和所有评审意见一次读完，输入可能很长。
+  默认最多等 1800 秒（`timeoutSec`），超时会记为失败，报告里那一节会显示错误和原因；
+  这时换个模型重试、把 `finalReviewer` 指到更快/更强的那个，或者减少 proposal 份数重跑。
+- "尽量换一家"只是约定，脚本不强制：`finalReviewer` 配成和写 proposal 同一家也能跑，
+  但报告里会明确标注独立性打折。
+- `11_final_review.json` 是本插件新增的一步，原项目的命令行版不认识它（会忽略）；
+  反过来，原项目跑出来的运行目录在本插件里能正常打开报告，只是没有最终评审这一节。
 
 ## 许可
 
 MIT，见 [LICENSE](LICENSE)。`skill/scripts`、`skill/references`、`skill/assets` 来自上游
-idea-review 项目，版权归原作者。
+idea-review 项目，版权归原作者；本插件在这些文件上做了改动（新增最终评审这一步：
+`ir.py` 的 `chair`、`report.py` 的最终评审一节、`schemas` 里的 `FinalReview`、
+`assets/final_review.*.md`），其余文件保持原样。
